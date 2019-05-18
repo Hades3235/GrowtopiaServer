@@ -2738,6 +2738,24 @@ int _tmain(int argc, _TCHAR* argv[])
 						delete p.data;
 						//enet_host_flush(server);
 					}
+                   else if (str.substr(0, 8) == "/howgay") {
+                    ENetPeer* currentPeer;
+                    int val = rand() % 100;
+                    for (currentPeer = server->peers;
+                        currentPeer < &server->peers[server->peerCount];
+                        ++currentPeer)
+                    {
+                        if (currentPeer->state != ENET_PEER_STATE_CONNECTED)
+                            continue;
+                        if (isHere(peer, currentPeer))
+                        {
+                            GamePacket p2 = packetEnd(appendIntx(appendString(appendIntx(appendString(createPacket(), "OnTalkBubble"), ((PlayerInfo)(peer->data))->netID), "`w" + ((PlayerInfo)(peer->data))->displayName + " ware2" + std::to_string(val) + "% `wgay!"), 0));
+                            ENetPacket * packet2 = enet_packet_create(p2.data,
+                                p2.len,
+                                ENET_PACKET_FLAG_RELIABLE);
+                            enet_peer_send(currentPeer, 0, packet2);
+                            delete p2.data;
+                        }
 					else if (str.substr(0, 5) == "/asb "){
 						if (!canSB(((PlayerInfo*)(peer->data))->rawName, ((PlayerInfo*)(peer->data))->tankIDPass)) continue;
 						cout << "ASB from " << ((PlayerInfo*)(peer->data))->rawName <<  " in world " << ((PlayerInfo*)(peer->data))->currentWorld << "with IP " << std::hex << peer->address.host << std::dec << " with message " << str.substr(5, cch.length() - 5 - 1) << endl;
