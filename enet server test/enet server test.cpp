@@ -3272,6 +3272,31 @@ int _tmain(int argc, _TCHAR* argv[])
 					}
 					
 			}
+					void sendPlayerToPlayer(ENetPeer* peer, ENetPeer* otherpeer)
+	{
+		{
+			sendPlayerLeave(peer, (PlayerInfo*)(peer->data));
+		}
+		WorldInfo info = worldDB.get(((PlayerInfo*)(otherpeer->data))->currentWorld);
+		sendWorld(peer, &info);
+
+		int x = ((PlayerInfo*)(otherpeer->data))->x;
+		int y = ((PlayerInfo*)(otherpeer->data))->y;
+
+		GamePacket p = packetEnd(appendString(appendString(createPacket(), "OnSpawn"), "spawn|avatar\nnetID|" + std::to_string(cId) + "\nuserID|" + std::to_string(cId) + "\ncolrect|0|0|20|30\nposXY|" + std::to_string(x) + "|" + std::to_string(y) + "\nname|``" + ((PlayerInfo*)(peer->data))->displayName + "``\ncountry|" + ((PlayerInfo*)(peer->data))->country + "\ninvis|0\nmstate|0\nsmstate|0\ntype|local\n"));
+
+		ENetPacket * packet = enet_packet_create(p.data,
+			p.len,
+			ENET_PACKET_FLAG_RELIABLE);
+		enet_peer_send(peer, 0, packet);
+
+		delete p.data;
+		((PlayerInfo*)(peer->data))->netID = cId;
+		onPeerConnect(peer);
+		cId++;
+
+		sendInventory(peer, ((PlayerInfo*)(peer->data))->inventory);
+	}
 				void sendPlayerToWorld(ENetPeer* peer, PlayerInfo* player, string wrldname)
 	{
 		{
