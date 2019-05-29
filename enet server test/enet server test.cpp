@@ -2717,7 +2717,7 @@ int _tmain(int argc, _TCHAR* argv[])
 						}
 					}
 					else if (str == "/help"){
-						GamePacket p = packetEnd(appendString(appendString(createPacket(), "OnConsoleMessage"), "Supported commands are: /mods, /ducttape, /help, /mod, /unmod, /inventory, /item id, /team id, /color number, /who, /state number, /count, /sb message, /alt, /radio, /gem, /jsb, /find itemname, /unequip, /weather id"));
+						GamePacket p = packetEnd(appendString(appendString(createPacket(), "OnConsoleMessage"), "Supported commands are: /mods, /ducttape, /help, /mod, /unmod, /inventory, /item id, /team id, /color number, /who, /state number, /count, /sb message, /alt, /radio,/warp,/warpto , /gem, /jsb, /find itemname, /unequip, /weather id"));
 						ENetPacket * packet = enet_packet_create(p.data,
 							p.len,
 							ENET_PACKET_FLAG_RELIABLE);
@@ -2738,6 +2738,127 @@ int _tmain(int argc, _TCHAR* argv[])
 
 
 						}
+						else if (str.substr(0, 6) == "/warp ") {
+						if (getAdminLevel(((PlayerInfo*)(peer->data))->rawName, ((PlayerInfo*)(peer->data))->tankIDPass) > 0) {
+							string world = str.substr(6, str.length());
+
+							sendPlayerToWorld(peer, (PlayerInfo*)(peer->data), world);
+
+							GamePacket p = packetEnd(appendString(appendString(createPacket(), "OnConsoleMessage"), "`9Warping to " + world));
+							ENetPacket * packet = enet_packet_create(p.data,
+								p.len,
+								ENET_PACKET_FLAG_RELIABLE);
+							enet_peer_send(peer, 0, packet);
+						}
+					}
+						else if (str.substr(0, 8) == "/warpto ") {
+					if (getAdminLevel(((PlayerInfo*)(peer->data))->rawName, ((PlayerInfo*)(peer->data))->tankIDPass) > 0) {
+						string name = str.substr(8, str.length());
+
+						ENetPeer* currentPeer;
+
+						bool found = false;
+
+						for (currentPeer = server->peers;
+							currentPeer < &server->peers[server->peerCount];
+							++currentPeer)
+						{
+							if (currentPeer->state != ENET_PEER_STATE_CONNECTED)
+								continue;
+
+							string name2 = ((PlayerInfo*)(currentPeer->data))->rawName;
+
+							std::transform(name.begin(), name.end(), name.begin(), ::tolower);
+							std::transform(name2.begin(), name2.end(), name2.begin(), ::tolower);
+
+							if (name == name2) {
+								sendPlayerToPlayer(peer, currentPeer);
+								found = true;
+							}
+
+						}
+						if (found) {
+							GamePacket p = packetEnd(appendString(appendString(createPacket(), "OnConsoleMessage"), "`9Warping to " + name));
+							ENetPacket * packet = enet_packet_create(p.data,
+								p.len,
+								ENET_PACKET_FLAG_RELIABLE);
+							enet_peer_send(peer, 0, packet);
+						}
+						else {
+							GamePacket p = packetEnd(appendString(appendString(createPacket(), "OnConsoleMessage"), "`4Player not found!"));
+							ENetPacket * packet = enet_packet_create(p.data,
+								p.len,
+								ENET_PACKET_FLAG_RELIABLE);
+							enet_peer_send(peer, 0, packet);
+						}
+					}
+
+					}
+					else if (str.substr(0, 6) == "/find ") {
+						string item = str.substr(6, str.length());
+						
+						if (item != "") {
+							if (item.length() >= 3) {
+								string stuff;
+								std::ifstream infile("CoreData.txt");
+								for (std::string line; getline(infile, line);)
+								{
+									if (line.length() > 8 && line[0] != '/' && line[1] != '/')
+									{
+										vector<string> ex = explode("|", line);
+										string xd = ex[1];
+										string id = ex[0];
+										std::transform(xd.begin(), xd.end(), xd.begin(), ::tolower);
+
+										std::transform(item.begin(), item.end(), item.begin(), ::tolower);
+
+										if (xd.find(item) != std::string::npos) {
+											stuff.append("\nadd_label_with_icon|small|"+xd+"|left|"+id+"|" + "\nadd_button|found"+id+"|Get|noflags|");
+											stuff.append("\nadd+spacer|sma;;|");
+										}
+									}
+								}
+								string x = "set_default_color|`3\n";
+
+								x.append("\nadd_label|big|`9Item Finder|left|");
+								if (stuff == "") {
+									GamePacket p = packetEnd(appendString(appendString(createPacket(), "OnConsoleMessage"), "`4No results!"));
+									ENetPacket * packet = enet_packet_create(p.data,
+										p.len,
+										ENET_PACKET_FLAG_RELIABLE);
+									enet_peer_send(peer, 0, packet);
+									delete p.data;
+								}
+								else {
+									x.append("\nadd_label|small|`wHere are the results of your `9search`w:|left|");
+
+									x.append("\nadd_spacer|small|");
+
+									x.append(stuff);
+
+									//x.append(addspacer("big"));
+								}
+								x.append("\n\nadd_quick_exit|\nnend_dialog|gazette||OK|");
+
+								GamePacket p = packetEnd(appendString(appendString(createPacket(), "OnDialogRequest"), x));
+								ENetPacket * packet = enet_packet_create(p.data,
+									p.len,
+									ENET_PACKET_FLAG_RELIABLE);
+								enet_peer_send(peer, 0, packet);
+								delete p.data;
+							}
+							else {
+								GamePacket p = packetEnd(appendString(appendString(createPacket(), "OnConsoleMessage"), "`4You must enter 3 or more letters!"));
+								ENetPacket * packet = enet_packet_create(p.data,
+									p.len,
+									ENET_PACKET_FLAG_RELIABLE);
+								enet_peer_send(peer, 0, packet);
+								delete p.data;
+							}
+
+
+						}
+					}
 					else if (str.substr(0, 9) == "/weather ") {
 							if (world->name != "ADMIN") {
 								if (world->owner != "") {
