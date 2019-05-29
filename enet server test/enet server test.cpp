@@ -2592,64 +2592,7 @@ int _tmain(int argc, _TCHAR* argv[])
 							ENET_PACKET_FLAG_RELIABLE);
 						enet_peer_send(peer, 0, packet);
 					}
-                                        else if (str.substr(0, 5) == "/ban ") {
-						if (getAdminLevel(((PlayerInfo*)(peer->data))->rawName, ((PlayerInfo*)(peer->data))->tankIDPass) > 0) {
-							string name = str.substr(5, str.length());
-
-							ENetPeer* currentPeer;
-
-							bool found = false;
-
-							for (currentPeer = server->peers;
-								currentPeer < &server->peers[server->peerCount];
-								++currentPeer)
-							{
-								if (currentPeer->state != ENET_PEER_STATE_CONNECTED)
-									continue;
-
-								if (((PlayerInfo*)(currentPeer->data))->rawName == name) {
-									found = true;
-									std::ifstream ifs("players/" + ((PlayerInfo*)(currentPeer->data))->rawName + ".json");
-									if (ifs.is_open()) {
-										json x;
-										ifs >> x;
-										std::ofstream o("players/" + ((PlayerInfo*)(currentPeer->data))->rawName + ".json");
-										json j;
-										j["username"] = ((PlayerInfo*)(currentPeer->data))->rawName;
-										j["password"] = hashPassword(((PlayerInfo*)(currentPeer->data))->tankIDPass);
-										j["email"] = x["email"];
-										j["banned"] = true;
-										j["discord"] = x["discord"];
-										j["adminLevel"] = x["adminLevel"];
-										o << j << std::endl;
-									}
-									ifs.close();
-
-									GamePacket p = packetEnd(appendString(appendString(createPacket(), "OnConsoleMessage"), "`4You have been permanently banned by "+ ((PlayerInfo*)(peer->data))->rawName));
-									ENetPacket * packet = enet_packet_create(p.data,
-										p.len,
-										ENET_PACKET_FLAG_RELIABLE);
-									enet_peer_send(currentPeer, 0, packet);
-									enet_peer_disconnect_later(currentPeer, 0);
-								}
-
-							}
-							if (!found) {
-								GamePacket p = packetEnd(appendString(appendString(createPacket(), "OnConsoleMessage"), "`4Player not found!"));
-								ENetPacket * packet = enet_packet_create(p.data,
-									p.len,
-									ENET_PACKET_FLAG_RELIABLE);
-								enet_peer_send(peer, 0, packet);
-							}
-							else {
-								GamePacket p = packetEnd(appendString(appendString(createPacket(), "OnConsoleMessage"), "`2Player successfully banned!"));
-								ENetPacket * packet = enet_packet_create(p.data,
-									p.len,
-									ENET_PACKET_FLAG_RELIABLE);
-								enet_peer_send(peer, 0, packet);
-							}
-						}
-					}
+                                 
 					else if (str.substr(0,10) == "/ducttape ") {
 						if (getAdminLevel(((PlayerInfo*)(peer->data))->rawName, ((PlayerInfo*)(peer->data))->tankIDPass) > 0) {
 							string name = str.substr(10, str.length());
@@ -2917,24 +2860,7 @@ int _tmain(int argc, _TCHAR* argv[])
 						delete p.data;
 						//enet_host_flush(server);
 					}
-                   else if (str.substr(0, 8) == "/howgay") {
-                    ENetPeer* currentPeer;
-                    int val = rand() % 100;
-                    for (currentPeer = server->peers;
-                        currentPeer < &server->peers[server->peerCount];
-                        ++currentPeer)
-                    {
-                        if (currentPeer->state != ENET_PEER_STATE_CONNECTED)
-                            continue;
-                        if (isHere(peer, currentPeer))
-                        {
-                            GamePacket p2 = packetEnd(appendIntx(appendString(appendIntx(appendString(createPacket(), "OnTalkBubble"), ((PlayerInfo)(peer->data))->netID), "`w" + ((PlayerInfo)(peer->data))->displayName + " ware2" + std::to_string(val) + "% `wgay!"), 0));
-                            ENetPacket * packet2 = enet_packet_create(p2.data,
-                                p2.len,
-                                ENET_PACKET_FLAG_RELIABLE);
-                            enet_peer_send(currentPeer, 0, packet2);
-                            delete p2.data;
-                        }
+                
 					else if (str.substr(0, 5) == "/asb "){
 						if (!canSB(((PlayerInfo*)(peer->data))->rawName, ((PlayerInfo*)(peer->data))->tankIDPass)) continue;
 						cout << "ASB from " << ((PlayerInfo*)(peer->data))->rawName <<  " in world " << ((PlayerInfo*)(peer->data))->currentWorld << "with IP " << std::hex << peer->address.host << std::dec << " with message " << str.substr(5, cch.length() - 5 - 1) << endl;
@@ -3346,6 +3272,38 @@ int _tmain(int argc, _TCHAR* argv[])
 					}
 					
 			}
+				void sendPlayerToWorld(ENetPeer* peer, PlayerInfo* player, string wrldname)
+	{
+		{
+			sendPlayerLeave(peer, (PlayerInfo*)(peer->data));
+		}
+		WorldInfo info = worldDB.get(wrldname);
+		sendWorld(peer, &info);
+
+		int x = 3040;
+		int y = 736;
+
+		for (int j = 0; j < info.width*info.height; j++)
+		{
+			if (info.items[j].foreground == 6) {
+				x = (j%info.width) * 32;
+				y = (j / info.width) * 32;
+			}
+		}
+		GamePacket p = packetEnd(appendString(appendString(createPacket(), "OnSpawn"), "spawn|avatar\nnetID|" + std::to_string(cId) + "\nuserID|" + std::to_string(cId) + "\ncolrect|0|0|20|30\nposXY|" + std::to_string(x) + "|" + std::to_string(y) + "\nname|``" + ((PlayerInfo*)(peer->data))->displayName + "``\ncountry|" + ((PlayerInfo*)(peer->data))->country + "\ninvis|0\nmstate|0\nsmstate|0\ntype|local\n"));
+
+		ENetPacket * packet = enet_packet_create(p.data,
+			p.len,
+			ENET_PACKET_FLAG_RELIABLE);
+		enet_peer_send(peer, 0, packet);
+
+		delete p.data;
+		((PlayerInfo*)(peer->data))->netID = cId;
+		onPeerConnect(peer);
+		cId++;
+
+		sendInventory(peer, ((PlayerInfo*)(peer->data))->inventory);
+	}
 				if (!((PlayerInfo*)(event.peer->data))->isIn)
 				{
 					GamePacket p = packetEnd(appendString(appendString(appendString(appendString(appendInt(appendString(createPacket(), "OnSuperMainStartAcceptLogonHrdxs47254722215a"), 1385479555), "ubistatic-a.akamaihd.net"), "0098/CDNContent3/cache/"), "cc.cz.madkite.freedom org.aqua.gg idv.aqua.bulldog com.cih.gamecih2 com.cih.gamecih com.cih.game_cih cn.maocai.gamekiller com.gmd.speedtime org.dax.attack com.x0.strai.frep com.x0.strai.free org.cheatengine.cegui org.sbtools.gamehack com.skgames.traffikrider org.sbtoods.gamehaca com.skype.ralder org.cheatengine.cegui.xx.multi1458919170111 com.prohiro.macro me.autotouch.autotouch com.cygery.repetitouch.free com.cygery.repetitouch.pro com.proziro.zacro com.slash.gamebuster"), "proto=42|choosemusic=audio/mp3/about_theme.mp3|active_holiday=0|"));
@@ -3930,4 +3888,3 @@ int _tmain(int argc, _TCHAR* argv[])
 	while (1);
 	return 0;
 }
-
